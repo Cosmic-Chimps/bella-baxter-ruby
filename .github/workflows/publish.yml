@@ -1,0 +1,84 @@
+name: Publish Ruby SDK to RubyGems
+
+# RubyGems gem: bella_baxter
+# Install: gem install bella_baxter
+# Requires secret: RUBYGEMS_API_KEY
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  SDK_FOLDER: .
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: ruby-gems-bella-baxter
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version-file: ${{ env.SDK_FOLDER }}/.ruby-version
+          bundler-cache: false
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing bella_baxter $VERSION"
+
+      - name: Verify gem version matches tag
+        run: |
+          GEM_VERSION=$(ruby -e "require_relative 'lib/bella_baxter/version'; puts BellaBaxter::VERSION")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          if [ "$GEM_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::version.rb has $GEM_VERSION but tag is $TAG_VERSION — run release-sdk.yml first"
+            exit 1
+          fi
+          echo "✓ version.rb $GEM_VERSION matches tag $TAG_VERSION"
+
+      - name: Install kiota
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+      - run: dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.30.0
+
+      - name: Set production API URL
+        run: |
+          BELLA_BAXTER_API_URL="${{ vars.BELLA_BAXTER_API_URL || 'https://api.bella-baxter.io' }}"
+          if [ "$BELLA_BAXTER_API_URL" != "https://api.bella-baxter.io" ]; then
+            grep -rl 'https://api.bella-baxter.io' . --include='*.rb' \
+              | xargs sed -i "s|https://api.bella-baxter.io|${BELLA_BAXTER_API_URL}|g"
+          fi
+
+      - name: Generate Kiota Ruby client
+        run: |
+          kiota update \
+            --output lib/bella_baxter/generated \
+            --log-level Warning
+
+      - name: Build gem
+        run: gem build bella_baxter.gemspec
+
+      - name: Push to RubyGems
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: gem push bella_baxter-${{ steps.version.outputs.version }}.gem
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [publish]
+    if: always()
+    steps:
+      - uses: slackapi/slack-github-action@v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: webhook-trigger
+          payload: |
+            text: "*SDK Ruby (bella_baxter) gem publish ${{ github.ref_name }}*: ${{ needs.publish.result }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

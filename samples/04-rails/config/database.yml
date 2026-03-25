@@ -1,0 +1,25 @@
+# Rails database.yml — shows that NO secrets live in this file.
+# DATABASE_URL is injected into ENV by Bella Baxter before Rails reads this.
+
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+  # BellaBaxter injects DATABASE_URL before this file is evaluated.
+  # Rails automatically uses DATABASE_URL when present, so this just works.
+  url: <%= ENV["DATABASE_URL"] %>
+
+development:
+  <<: *default
+  # Falls back to a local default if BELLA_API_KEY is not set (local dev without Bella)
+  url: <%= ENV.fetch("DATABASE_URL", "postgres://postgres:postgres@localhost/myapp_development") %>
+
+test:
+  <<: *default
+  url: <%= ENV.fetch("DATABASE_URL", "postgres://postgres:postgres@localhost/myapp_test") %>
+
+production:
+  <<: *default
+  # DATABASE_URL is required in production — Bella Baxter provides it.
+  url: <%= ENV.fetch("DATABASE_URL") { raise "DATABASE_URL not loaded from Bella Baxter!" } %>
