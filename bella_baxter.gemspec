@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
     via Railtie and direct ENV injection.
   DESC
   spec.homepage    = "https://github.com/cosmic-chimps/bella-baxter"
-  spec.license     = "ELv2"
+  spec.license     = "MIT"
 
   spec.required_ruby_version = ">= 4.0"
 
