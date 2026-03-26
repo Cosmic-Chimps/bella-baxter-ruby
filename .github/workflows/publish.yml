@@ -47,7 +47,7 @@ jobs:
       - name: Install kiota
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
       - run: dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.30.0
 
       - name: Set production API URL
