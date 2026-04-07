@@ -25,6 +25,18 @@ module BellaBaxter
         @public_key_b64 = Base64.strict_encode64(@ec.public_to_der)
       end
 
+      # Create a KeyPair from a PKCS#8 PEM private key (ZKE persistent device key).
+      # Use this instead of KeyPair.new for ZKE mode.
+      # Obtain a key with: bella auth setup
+      def self.from_pem(pem)
+        private_key    = OpenSSL::PKey::EC.new(pem)
+        public_key_b64 = Base64.strict_encode64(private_key.public_to_der)
+
+        instance = allocate
+        instance.send(:initialize_from_key, private_key, public_key_b64)
+        instance
+      end
+
       # Decrypt a response payload.
       #
       # @param payload [Hash] Parsed JSON with keys:
@@ -113,6 +125,12 @@ module BellaBaxter
       end
 
       private
+
+      # Shared setup used by from_pem — sets the same instance variables as initialize.
+      def initialize_from_key(ec_key, public_key_b64)
+        @ec             = ec_key
+        @public_key_b64 = public_key_b64
+      end
 
       # HKDF (RFC 5869) using HMAC-SHA256. Salt is 32 zero bytes (matches server).
       def hkdf_sha256(ikm, length)

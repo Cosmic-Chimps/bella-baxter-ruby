@@ -47,15 +47,18 @@ module BellaBaxter
     end
 
     # @param opts [Hash, BellaBaxter::Configuration]
-    def initialize(**opts)
+    def initialize(private_key: nil, on_wrapped_dek_received: nil, **opts)
       config = opts.size == 1 && opts.key?(:config) ? opts[:config] : Configuration.new(**opts)
+
+      resolved_private_key = private_key || ENV["BELLA_BAXTER_PRIVATE_KEY"]
+      key_pair = resolved_private_key ? E2EE::KeyPair.from_pem(resolved_private_key) : nil
 
       auth = HmacAuthProvider.new(config.api_key)
 
       @conn = Faraday.new(url: config.baxter_url.chomp("/")) do |f|
         f.headers["User-Agent"]     = "bella-ruby-sdk/1.0"
         f.headers["X-Bella-Client"] = "bella-ruby-sdk"
-        f.use E2EEFaradayMiddleware
+        f.use E2EEFaradayMiddleware, key_pair: key_pair, on_wrapped_dek_received: on_wrapped_dek_received
         f.adapter :net_http
       end
 

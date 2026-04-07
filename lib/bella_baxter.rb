@@ -52,7 +52,7 @@ module BellaBaxter
       end
 
       begin
-        client = Client.new(config: c)
+        client = Client.new(config: c, private_key: ENV["BELLA_BAXTER_PRIVATE_KEY"])
         count  = client.load_into_env!
         ctx    = client.key_context
         logger.info "[BellaBaxter] Loaded #{count} secret(s) into ENV " \
