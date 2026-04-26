@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module BellaBaxter
-  VERSION = "0.1.1-preview.64"
+  VERSION = "0.1.1-preview.65"
 end
