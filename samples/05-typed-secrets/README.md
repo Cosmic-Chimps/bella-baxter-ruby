@@ -23,7 +23,7 @@ AppSecrets.database_url  (typed, IDE-autocomplete, runtime validation)
 bundle install
 
 # Authenticate
-bella login --api-key bax-xxxxxxxxxxxxxxxxxxxx
+bella login
 
 export BELLA_BAXTER_URL=http://localhost:5522   # your Bella Baxter instance
 

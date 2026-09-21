@@ -144,7 +144,7 @@ echo "─── 03-standalone ────────────────�
 SAMPLE_03="$SAMPLES_DIR/03-standalone"
 
 _output03="$(cd "$SAMPLE_03" && BUNDLE_GEMFILE="$SAMPLE_03/Gemfile" \
-  bella exec --app ruby-03-standalone -- "$BUNDLE" exec "$RUBY" app.rb 2>/dev/null)" || true
+  bella sdk run --app ruby-03-standalone -- "$BUNDLE" exec "$RUBY" app.rb 2>/dev/null)" || true
 
 check_contains "03: PORT in output"         "PORT" "$_output03"
 check_contains "03: DATABASE_URL in output" "DATABASE_URL" "$_output03"
@@ -185,9 +185,9 @@ _stale_pid="$(lsof -ti ":$RAILS_PORT" 2>/dev/null || true)"
 [[ -n "$_stale_pid" ]] && kill "$_stale_pid" 2>/dev/null && sleep 1 || true
 rm -f "$SAMPLE_04/tmp/pids/server.pid"
 
-# Start Rails server via bella exec (Railtie loads secrets at boot)
+# Start Rails server via bella sdk run (Railtie loads secrets at boot)
 (cd "$SAMPLE_04" && BUNDLE_GEMFILE="$SAMPLE_04/Gemfile" \
-  bella exec --app ruby-04-rails -- "$BUNDLE" exec "$RUBY" bin/rails server \
+  bella sdk run --app ruby-04-rails -- "$BUNDLE" exec "$RUBY" bin/rails server \
     -p "$RAILS_PORT" -e development >/tmp/rails-test.log 2>&1) &
 RAILS_PID=$!
 

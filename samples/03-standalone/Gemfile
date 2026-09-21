@@ -2,4 +2,4 @@
 
 source "https://rubygems.org"
 
-gem "bella_baxter", path: "../../.."
+gem "bella_baxter", path: "../.."

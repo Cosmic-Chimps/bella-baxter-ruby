@@ -3,9 +3,9 @@
 # Sample 03: Ruby script — pulls secrets via the BellaBaxter SDK.
 #
 # Workflow (API key mode — the easiest):
-#   bella exec --app ruby-03-standalone -- bundle exec ruby app.rb
+#   bella sdk run --app ruby-03-standalone -- bundle exec ruby app.rb
 #
-# bella exec injects BELLA_BAXTER_API_KEY, BELLA_BAXTER_URL,
+# bella sdk run injects BELLA_BAXTER_API_KEY, BELLA_BAXTER_URL,
 # BELLA_BAXTER_PROJECT, and BELLA_BAXTER_ENV automatically.
 
 require "bella_baxter"

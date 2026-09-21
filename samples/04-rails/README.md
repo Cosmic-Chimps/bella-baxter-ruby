@@ -24,13 +24,13 @@ Rails boot order:
 gem "bella_baxter"
 ```
 
-**Run with bella exec** (the only secrets you need to configure in your platform):
+**Run with bella sdk run** (the only secrets you need to configure in your platform):
 
 ```bash
-bella exec -- bundle exec rails server
+bella sdk run -- bundle exec rails server
 ```
 
-`bella exec` injects exactly two credentials:
+`bella sdk run` injects exactly two credentials:
 
 | Variable          | Description                        |
 |-------------------|------------------------------------|

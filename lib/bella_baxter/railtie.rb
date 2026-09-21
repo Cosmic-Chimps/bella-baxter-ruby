@@ -19,11 +19,11 @@ module BellaBaxter
   #   gem "bella_baxter"
   #
   #   # Start your app
-  #   bella exec -- bundle exec rails server
+  #   bella sdk run -- bundle exec rails server
   #
   # That's it. The Railtie auto-registers when the gem is loaded.
   #
-  # == Required environment variables (set by `bella exec`)
+  # == Required environment variables (set by `bella sdk run`)
   #
   #   BELLA_API_KEY      Your API key (bax-...)
   #   BELLA_BAXTER_URL   Base URL of your Bella Baxter instance

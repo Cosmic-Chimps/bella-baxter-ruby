@@ -8,7 +8,7 @@
 #
 # Workflow:
 #   bella secrets generate ruby -p my-project -e production -o secrets.rb
-#   bella exec -- bundle exec ruby app.rb
+#   bella sdk run -- bundle exec ruby app.rb
 
 require 'dotenv/load'
 require_relative 'secrets'
