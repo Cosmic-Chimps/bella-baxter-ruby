@@ -1,3 +1,4 @@
-# Kiota-generated client — regenerate with: kiota update -o lib/bella_baxter/generated/
-# or run apps/sdk/generate.sh from repo root
+# Kiota-generated client — regenerate with: scripts/verify_gem.sh --generate
+# or run apps/sdk/generate.sh from repo root. A bare `kiota update` is not enough (#991):
+# it must be followed by scripts/fix_generated_primitives.rb.
 lib/bella_baxter/generated/

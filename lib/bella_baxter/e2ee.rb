@@ -13,6 +13,16 @@ module BellaBaxter
   #
   # No extra gems required — uses Ruby's built-in +openssl+ stdlib.
   module E2EE
+    # The device key a client should use: +explicit+, else BELLA_BAXTER_PRIVATE_KEY.
+    #
+    # A blank value (empty or whitespace, from either source) means "no device key", as in every other
+    # SDK. `ENV[...] = ""` is truthy in Ruby, so without this an empty variable raised instead. Anything
+    # else is returned as-is and must then load as a P-256 key (KeyPair.from_pem), or construction fails.
+    def self.resolve_device_key(explicit)
+      clean = ->(v) { v.nil? || v.strip.empty? ? nil : v }
+      clean.(explicit) || clean.(ENV["BELLA_BAXTER_PRIVATE_KEY"])
+    end
+
     class KeyPair
       # Base64-encoded DER/SPKI public key to send as X-E2E-Public-Key header.
       attr_reader :public_key_b64
@@ -30,6 +40,12 @@ module BellaBaxter
       # Obtain a key with: bella auth setup
       def self.from_pem(pem)
         private_key    = OpenSSL::PKey::EC.new(pem)
+        # The platform's ECIES is P-256 only. Any other curve used to load here and then fail on the
+        # server with an unclear error; refuse it where the cause is still visible.
+        curve = private_key.group.curve_name
+        unless curve == "prime256v1"
+          raise ArgumentError, "ZKE private key must be a P-256 (prime256v1) key, not #{curve || 'an unnamed curve'}"
+        end
         public_key_b64 = Base64.strict_encode64(private_key.public_to_der)
 
         instance = allocate

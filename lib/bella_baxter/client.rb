@@ -50,7 +50,7 @@ module BellaBaxter
     def initialize(private_key: nil, on_wrapped_dek_received: nil, **opts)
       config = opts.size == 1 && opts.key?(:config) ? opts[:config] : Configuration.new(**opts)
 
-      resolved_private_key = private_key || ENV["BELLA_BAXTER_PRIVATE_KEY"]
+      resolved_private_key = E2EE.resolve_device_key(private_key)
       key_pair = resolved_private_key ? E2EE::KeyPair.from_pem(resolved_private_key) : nil
 
       auth = HmacAuthProvider.new(config.api_key)

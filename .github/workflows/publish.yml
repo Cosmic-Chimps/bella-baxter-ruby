@@ -58,11 +58,19 @@ jobs:
               | xargs sed -i "s|https://api.bella-baxter.io|${BELLA_BAXTER_API_URL}|g"
           fi
 
+      # #991: `kiota update` alone produces a client that names classes which do not exist (Int64,
+      # Double); the fix step rewrites them and FAILS if it finds nothing to rewrite.
       - name: Generate Kiota Ruby client
         run: |
           kiota update \
             --output lib/bella_baxter/generated \
             --log-level Warning
+          ruby scripts/fix_generated_primitives.rb lib/bella_baxter/generated
+
+      # #991: the gem shipped unloadable because nothing ever required it. Build it, install it into a
+      # throwaway GEM_HOME and decode a response through the installed copy before anything is pushed.
+      - name: Verify the gem loads and decodes a response
+        run: scripts/verify_gem.sh
 
       - name: Build gem
         run: gem build bella_baxter.gemspec

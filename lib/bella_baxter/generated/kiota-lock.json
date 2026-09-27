@@ -5,7 +5,7 @@
   "kiotaVersion": "1.30.0",
   "clientClassName": "BellaClient",
   "typeAccessModifier": "Public",
-  "clientNamespaceName": "bella_baxter/generated",
+  "clientNamespaceName": "BellaBaxterGenerated",
   "language": "Ruby",
   "usesBackingStore": false,
   "excludeBackwardCompatible": true,

@@ -217,8 +217,22 @@ Because each method calls `ENV.fetch` on every invocation (not memoized), secret
 
 ## Requirements
 
-- Ruby >= 2.7
-- No runtime gem dependencies
+- Ruby >= 4.0 (the gemspec's `required_ruby_version`; `.ruby-version` pins the version CI builds with)
+- Runtime gems: `microsoft_kiota_abstractions`, `microsoft_kiota_faraday`,
+  `microsoft_kiota_serialization_json`, `base64` (installed with the gem)
+
+## Developing this gem
+
+The Kiota client under `lib/bella_baxter/generated/` is not committed; its `kiota-lock.json` is.
+Regenerate it and prove the gem loads with:
+
+```bash
+scripts/verify_gem.sh --generate   # kiota update from the lock + fix step, gem build, install, test
+```
+
+`kiota update` must always be followed by `ruby scripts/fix_generated_primitives.rb`: Kiota 1.30.0
+maps `int64`/`double` fields to classes that do not exist, and the script rewrites them to the JSON
+runtime's number readers (issue #991).
 
 ## License
 
