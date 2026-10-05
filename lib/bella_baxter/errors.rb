@@ -20,6 +20,32 @@ module BellaBaxter
   # Raised when E2EE decryption fails.
   class DecryptionError < Error; end
 
+  # #1050 — a secrets read that presented X-E2E-Public-Key got back something other than an envelope
+  # that decrypts with this client's key. Refused, never returned: there is no plaintext fallback.
+  #
+  # +code+ is the stable, cross-SDK contract (apps/sdk/SDK_CONTRACT.md, "a presented key requires an
+  # envelope"); the message names the request path and the code, never the body, ciphertext or a key.
+  # A DecryptionError subclass so code that already rescues DecryptionError keeps catching it.
+  class E2EEResponseError < DecryptionError
+    # The 2xx answer was not an `"encrypted": true` envelope (plain secrets, or not JSON at all).
+    PLAINTEXT_RESPONSE = "e2ee-plaintext-response"
+    # The envelope was malformed, tampered with (GCM tag), or encrypted to a different key.
+    DECRYPTION_FAILED  = "e2ee-decryption-failed"
+
+    attr_reader :code, :path
+
+    def initialize(code, path)
+      @code = code
+      @path = path
+      what = code == PLAINTEXT_RESPONSE ? "expected but plaintext received" : "could not be decrypted"
+      super("E2EE response #{what} for #{path}; refusing it (#{code})")
+    end
+
+    def self.plaintext(path) = new(PLAINTEXT_RESPONSE, path)
+
+    def self.decryption_failed(path) = new(DECRYPTION_FAILED, path)
+  end
+
   # Raised when required configuration is missing.
   class ConfigurationError < Error; end
 

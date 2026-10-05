@@ -87,20 +87,24 @@ BellaBaxter.load_into_env!(overwrite: true)
 
 ## End-to-end encryption
 
+Always on: the client presents a P-256 public key (`X-E2E-Public-Key`) on every secrets read and the
+server encrypts the response to it. Pass `private_key:` (or set `BELLA_BAXTER_PRIVATE_KEY`) to use a
+registered device key instead of an ephemeral one.
+
 ```ruby
-client = BellaBaxter::Client.new(
-  baxter_url:  "https://baxter.example.com",
-  api_key:     "bax-...",
-  project:     "my-app",
-  environment: "production",
-  enable_e2ee: true   # Client generates P-256 keypair; server encrypts the response
-)
+client = BellaBaxter::Client.new(baxter_url: "https://baxter.example.com", api_key: "bax-...")
 
 # Decryption is transparent — same API
 secrets = client.all_secrets.secrets
 ```
 
 Algorithm: `ECDH-P256 → HKDF-SHA256 → AES-256-GCM`. All operations use Ruby's built-in `openssl` — no extra gems required.
+
+**A presented key requires an encrypted answer (#1050).** If a read that presented the key gets back plain
+JSON, an envelope that fails to decrypt (tampered), or one encrypted to a different key, the client raises
+`BellaBaxter::E2EEResponseError` (a `DecryptionError`) instead of returning anything. `error.code` is
+`"e2ee-plaintext-response"` or `"e2ee-decryption-failed"`, the same codes every Bella SDK uses. There is no
+plaintext fallback.
 
 ## Write operations
 
