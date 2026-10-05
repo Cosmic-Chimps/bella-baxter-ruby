@@ -116,6 +116,18 @@ module BellaBaxter
       def decrypt_raw(payload)
         return payload unless payload["encrypted"] == true
 
+        JSON.parse(decrypt_plaintext(payload))
+      rescue JSON::ParserError => e
+        raise BellaBaxter::DecryptionError, "Decrypted payload is not valid JSON: #{e.message}"
+      end
+
+      # Decrypt an envelope and return its plaintext exactly as the server serialized it (a String).
+      # #1162: the middleware hands this on unchanged, whatever the read's shape.
+      #
+      # @param payload [Hash] Parsed JSON encrypted payload ("encrypted" => true).
+      # @return [String] The decrypted UTF-8 JSON text.
+      # @raise [BellaBaxter::DecryptionError] when the GCM tag does not verify.
+      def decrypt_plaintext(payload)
         server_key_der = Base64.strict_decode64(payload["serverPublicKey"])
         nonce          = Base64.strict_decode64(payload["nonce"])
         tag            = Base64.strict_decode64(payload["tag"])
@@ -132,12 +144,9 @@ module BellaBaxter
         cipher.auth_tag  = tag
         cipher.auth_data = ""
 
-        plaintext = cipher.update(ciphertext) + cipher.final
-        JSON.parse(plaintext)
+        (cipher.update(ciphertext) + cipher.final).force_encoding(Encoding::UTF_8)
       rescue OpenSSL::Cipher::CipherError => e
         raise BellaBaxter::DecryptionError, "AES-GCM decryption failed: #{e.message}"
-      rescue JSON::ParserError => e
-        raise BellaBaxter::DecryptionError, "Decrypted payload is not valid JSON: #{e.message}"
       end
 
       private

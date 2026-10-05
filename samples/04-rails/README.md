@@ -59,9 +59,10 @@ Secrets are already in `ENV` by the time initializers run. This file is for **op
 count = BellaBaxter.load_into_env!(overwrite: true)
 Rails.logger.info "Reloaded #{count} secrets from Bella Baxter"
 
-# Access the client directly for writes or advanced reads:
+# Access the client directly for advanced reads, or the Kiota navigator for everything else:
 client = BellaBaxter::Client.from_env
-client.create_secret(key: "NEW_KEY", value: "new-value")
+version = client.secrets_version
+totp_keys = client.client.api.v1.projects.by_id("my-app").environments.by_env_slug("production").totp.get.resume
 ```
 
 ## database.yml pattern

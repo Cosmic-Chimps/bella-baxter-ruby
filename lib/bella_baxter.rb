@@ -16,11 +16,11 @@ module BellaBaxter
     attr_accessor :configuration
 
     def configure
+      # #1162: Configuration has no project/environment members (they come from the API key), so passing
+      # them here raised ArgumentError on the first `configure` call.
       self.configuration ||= Configuration.new(
-        baxter_url:   ENV.fetch("BELLA_BAXTER_URL", ""),
-        api_key:      ENV.fetch("BELLA_API_KEY", ""),
-        project:      ENV.fetch("BELLA_PROJECT", ""),
-        environment:  ENV.fetch("BELLA_ENV", "")
+        baxter_url: ENV.fetch("BELLA_BAXTER_URL", ""),
+        api_key:    ENV.fetch("BELLA_API_KEY", "")
       )
       yield configuration
       self

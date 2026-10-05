@@ -1,14 +1,14 @@
 # bella_baxter Ruby SDK
 
-Ruby client for [Bella Baxter](https://github.com/cosmic-chimps/bella-baxter) — load secrets into your Ruby or Rails application with zero runtime dependencies.
+Ruby client for [Bella Baxter](https://github.com/cosmic-chimps/bella-baxter) — load secrets into your Ruby or Rails application.
 
 ## Features
 
-- **Zero runtime dependencies** — uses only Ruby's stdlib (`openssl`, `net/http`, `json`)
 - **Rails Railtie** — auto-loads secrets before `database.yml` is evaluated
-- **End-to-end encryption** — optional E2EE using ECDH-P256-HKDF-SHA256-AES256GCM (stdlib OpenSSL)
-- **Thread-safe** — singleton client, mutex-protected HTTP
+- **End-to-end encryption, always on** — ECDH-P256-HKDF-SHA256-AES256GCM (stdlib OpenSSL)
+- **Project and environment from the key** — discovered via `GET /api/v1/keys/me`, nothing to configure
 - **ENV injection** — `load_into_env!` respects existing values (local dev overrides work)
+- **Full API access** — `client.client` is the Kiota-generated navigator for every other endpoint
 
 ## Installation
 
@@ -27,15 +27,21 @@ bundle install
 require "bella_baxter"
 
 client = BellaBaxter::Client.new(
-  baxter_url:  "https://baxter.example.com",
-  api_key:     "bax-...",
-  project:     "my-app",
-  environment: "production"
+  baxter_url: "https://baxter.example.com",
+  api_key:    "bax-..."
 )
 
+# The project and environment are the ones the API key is scoped to.
 secrets = client.all_secrets.secrets
 puts secrets["DATABASE_URL"]
+
+# Or name them explicitly:
+secrets = client.pull_secrets(project: "my-app", environment: "production")
 ```
+
+`Client.new` accepts `baxter_url:`, `api_key:`, `timeout:` (seconds, default 10), `private_key:` (a device
+key PEM; defaults to `BELLA_BAXTER_PRIVATE_KEY`) and `on_wrapped_dek_received:`. The project and environment
+are not constructor options: they come from the key, or are passed to each read.
 
 ## Rails integration
 
@@ -48,9 +54,8 @@ The gem ships a **Railtie** that injects all secrets into `ENV` during Rails' `b
 ```bash
 BELLA_BAXTER_URL=https://baxter.example.com
 BELLA_API_KEY=bax-...
-BELLA_PROJECT=my-app
-# BELLA_ENV defaults to Rails.env
-# BELLA_E2EE=true  to enable end-to-end encryption
+# The project and environment are the ones the key is scoped to; E2EE is always on.
+# BELLA_BAXTER_PRIVATE_KEY=...  (optional) a registered device key, injected by `bella sdk run`
 ```
 
 **database.yml** — nothing secret lives here:
@@ -87,8 +92,9 @@ BellaBaxter.load_into_env!(overwrite: true)
 
 ## End-to-end encryption
 
-Always on: the client presents a P-256 public key (`X-E2E-Public-Key`) on every secrets read and the
-server encrypts the response to it. Pass `private_key:` (or set `BELLA_BAXTER_PRIVATE_KEY`) to use a
+Always on: the client presents a P-256 public key (`X-E2E-Public-Key`) on every read that carries secret
+values — the bulk read, both exports, a provider's list, a single secret, a secret version and the global
+list, including the ones you make through `client.client` — and the server encrypts the response to it. Pass `private_key:` (or set `BELLA_BAXTER_PRIVATE_KEY`) to use a
 registered device key instead of an ephemeral one.
 
 ```ruby
@@ -106,26 +112,16 @@ JSON, an envelope that fails to decrypt (tampered), or one encrypted to a differ
 `"e2ee-plaintext-response"` or `"e2ee-decryption-failed"`, the same codes every Bella SDK uses. There is no
 plaintext fallback.
 
-## Write operations
+## Other endpoints (writes, TOTP, providers, …)
+
+The client wraps the secret reads above. Every other endpoint — creating or updating secrets, TOTP,
+providers, environments — is on the Kiota-generated navigator, which uses the same signing and E2EE:
 
 ```ruby
-# Create
-client.create_secret(
-  provider:    "my-vault",       # provider slug
-  key:         "DATABASE_URL",
-  value:       "postgres://...",
-  description: "Primary database"
-)
+api = client.client.api.v1.projects.by_id("my-app").environments.by_env_slug("production")
 
-# Update
-client.update_secret(
-  provider: "my-vault",
-  key:      "DATABASE_URL",
-  value:    "postgres://new-host/..."
-)
-
-# Delete
-client.delete_secret(provider: "my-vault", key: "DATABASE_URL")
+totp_keys = api.totp.get.resume
+providers = api.providers.get.resume
 ```
 
 ## Lightweight version check
@@ -142,23 +138,26 @@ puts "Version #{v.version}, last changed #{v.last_modified}"
 ```ruby
 # config/initializers/bella_baxter.rb
 BellaBaxter.configure do |c|
-  c.baxter_url  = ENV["BELLA_BAXTER_URL"]
-  c.api_key     = ENV["BELLA_API_KEY"]
-  c.project     = "my-app"
-  c.environment = Rails.env
-  c.enable_e2ee = Rails.env.production?
+  c.baxter_url = ENV["BELLA_BAXTER_URL"]
+  c.api_key    = ENV["BELLA_API_KEY"]
+  c.timeout    = 5
 end
 
 # Access the singleton client anywhere
 BellaBaxter.client.all_secrets
 ```
 
+`BellaBaxter::Configuration` has exactly `baxter_url`, `api_key` and `timeout`.
+
 ## Samples
 
 | Sample | Description |
 |--------|-------------|
-| [`samples/01-standalone/`](samples/01-standalone/) | Pure Ruby script — all usage patterns |
-| [`samples/02-rails/`](samples/02-rails/) | Rails integration with `database.yml` example |
+| [`samples/01-dotenv-file/`](samples/01-dotenv-file/) | Read the `.env` file `bella` writes |
+| [`samples/02-process-inject/`](samples/02-process-inject/) | Read the secrets `bella run` injects into `ENV` |
+| [`samples/03-standalone/`](samples/03-standalone/) | Pure Ruby script using the SDK |
+| [`samples/04-rails/`](samples/04-rails/) | Rails integration with `database.yml` example |
+| [`samples/05-typed-secrets/`](samples/05-typed-secrets/) | Typed secrets generated by `bella secrets generate ruby` |
 
 ---
 

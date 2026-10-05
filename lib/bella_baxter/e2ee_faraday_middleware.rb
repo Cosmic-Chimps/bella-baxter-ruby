@@ -6,10 +6,11 @@ require_relative "errors"
 require_relative "e2ee"
 
 module BellaBaxter
-  # Faraday middleware that transparently adds E2EE to GET /secrets requests.
+  # Faraday middleware that transparently adds E2EE to the envelope-required secret reads.
   #
-  # On outbound: adds X-E2E-Public-Key header so the server encrypts the response.
-  # On inbound:  decrypts the encrypted payload and reconstructs a normal secrets response.
+  # On outbound: adds X-E2E-Public-Key on every envelope-required read (#1162, +requires_envelope?+) so
+  #              the server encrypts the response.
+  # On inbound:  decrypts the envelope and hands the server's plaintext JSON on unchanged.
   class E2EEFaradayMiddleware < Faraday::Middleware
     def initialize(app, key_pair: nil, on_wrapped_dek_received: nil)
       super(app)
@@ -45,46 +46,26 @@ module BellaBaxter
     end
 
     def call(env)
-      is_secrets_get = env.method == :get && env.url.path.end_with?("/secrets")
+      # #1162 — the key is presented on EVERY envelope-required read (SDK_CONTRACT.md, "Rule: the key is
+      # presented on every envelope-required read"), decided here by the one matcher, never per method.
+      # From then on a 2xx that is not a decryptable envelope is an error (#1050), never a value.
+      presented = self.class.requires_envelope?(env.method, env.url.path)
 
-      if is_secrets_get
-        env.request_headers["X-E2E-Public-Key"] = @e2ee.public_key_b64
-      end
-
-      # The key was presented on a read the server always encrypts: from here a 2xx that is not a
-      # decryptable envelope is an error (#1050), never a value.
-      envelope_required = is_secrets_get && self.class.requires_envelope?(env.method, env.url.path)
+      env.request_headers["X-E2E-Public-Key"] = @e2ee.public_key_b64 if presented
 
       @app.call(env).on_complete do |resp_env|
-        next unless is_secrets_get && resp_env.status.between?(200, 299)
+        next unless presented && resp_env.status.between?(200, 299)
 
         path = env.url.path
         data = begin
           JSON.parse(resp_env.body.to_s)
         rescue JSON::ParserError
-          raise E2EEResponseError.plaintext(path) if envelope_required
-
-          next
+          raise E2EEResponseError.plaintext(path)
         end
 
-        unless data.is_a?(Hash) && data["encrypted"] == true
-          raise E2EEResponseError.plaintext(path) if envelope_required
+        raise E2EEResponseError.plaintext(path) unless data.is_a?(Hash) && data["encrypted"] == true
 
-          next
-        end
-
-        decrypted, secrets = decrypt_envelope(data, path)
-        if decrypted.is_a?(Hash) && decrypted.key?("secrets") && decrypted["secrets"].is_a?(Hash)
-          resp_env[:body] = JSON.generate(decrypted)
-        else
-          resp_env[:body] = JSON.generate(
-            "secrets"         => secrets,
-            "version"         => 0,
-            "environmentSlug" => "",
-            "environmentName" => "",
-            "lastModified"    => ""
-          )
-        end
+        resp_env[:body] = decrypted_body(data, path)
 
         if @on_wrapped_dek_received
           wrapped_dek = resp_env.response_headers["X-Bella-Wrapped-Dek"] ||
@@ -103,13 +84,38 @@ module BellaBaxter
 
     private
 
-    # Both views of one envelope: the raw decrypted JSON and the flattened secrets hash. Any failure —
-    # a missing or undecodable field, a GCM tag that does not verify (tampered), a key it was not
-    # encrypted to — is the one refusal below, with the original error kept as +cause+.
-    def decrypt_envelope(data, path)
-      [@e2ee.decrypt_raw(data), @e2ee.decrypt(data)]
+    # The body handed on after decryption. The plaintext of every envelope-required read is the JSON the
+    # server would have sent without a key (a secret item, an array of them, a {key: value} export,
+    # ListGlobalSecretsResponse), so it is passed on byte for byte (#1162). Only getAllEnvironmentSecrets
+    # keeps its legacy rescue: a server that encrypted just the flat {key: value} dict is re-wrapped as an
+    # AllEnvironmentSecretsResponse. Any failure — a missing or undecodable field, a GCM tag that does not
+    # verify (tampered), a key it was not encrypted to — is the one refusal, with the original as +cause+.
+    def decrypted_body(data, path)
+      plaintext = @e2ee.decrypt_plaintext(data)
+      decrypted = JSON.parse(plaintext)
+      return plaintext unless all_environment_secrets?(path)
+      return plaintext if decrypted.is_a?(Hash) && decrypted["secrets"].is_a?(Hash)
+      raise E2EEResponseError.decryption_failed(path) unless decrypted.is_a?(Hash)
+
+      JSON.generate(
+        "secrets"         => decrypted.transform_values(&:to_s),
+        "version"         => 0,
+        "environmentSlug" => "",
+        "environmentName" => "",
+        "lastModified"    => ""
+      )
+    rescue E2EEResponseError
+      raise
     rescue StandardError
       raise E2EEResponseError.decryption_failed(path)
+    end
+
+    # .../api/v1/projects/{p}/environments/{e}/secrets — getAllEnvironmentSecrets.
+    def all_environment_secrets?(path)
+      marker = "/api/v1/projects/"
+      i = path.to_s.index(marker) or return false
+      segs = path[(i + marker.length)..].split("/", -1)
+      segs.length == 4 && segs[1] == "environments" && segs[3] == "secrets"
     end
   end
 end

@@ -14,7 +14,9 @@
 #      response carrying one, which includes every `all_secrets` call (`version` is int64).
 
 require "minitest/autorun"
+require "base64"
 require "json"
+require "openssl"
 require "socket"
 
 require "bella_baxter"
@@ -168,6 +170,25 @@ class GemLoadsTest < Minitest::Test
     nil
   end
 
+  # EciesAlgorithm.Encrypt — the server side of the E2EE contract (as contract-tests/stub/server.mjs).
+  def encrypt_for(client_spki_b64, plaintext)
+    client_key = OpenSSL::PKey.read(Base64.strict_decode64(client_spki_b64))
+    ephemeral  = OpenSSL::PKey::EC.generate("prime256v1")
+    aes_key    = OpenSSL::KDF.hkdf(ephemeral.derive(client_key), salt: "\x00" * 32, info: "bella-e2ee-v1",
+                                   length: 32, hash: "SHA256")
+    cipher     = OpenSSL::Cipher.new("aes-256-gcm").encrypt
+    cipher.key = aes_key
+    nonce      = cipher.random_iv
+    cipher.auth_data = ""
+    ciphertext = cipher.update(plaintext) + cipher.final
+    {
+      "encrypted" => true, "algorithm" => "ECDH-P256-HKDF-SHA256-AES256GCM",
+      "serverPublicKey" => Base64.strict_encode64(ephemeral.public_to_der),
+      "nonce" => Base64.strict_encode64(nonce), "tag" => Base64.strict_encode64(cipher.auth_tag),
+      "ciphertext" => Base64.strict_encode64(ciphertext)
+    }
+  end
+
   # A one-connection-at-a-time HTTP/1.1 server answering the two calls all_secrets makes. No Bella,
   # no network: the point is the client's decode path, not the platform.
   def with_stub_server
@@ -189,7 +210,10 @@ class GemLoadsTest < Minitest::Test
           when "/api/v1/keys/me"
             [200, { "projectSlug" => PROJECT, "environmentSlug" => ENVIRONMENT }]
           when "/api/v1/projects/#{PROJECT}/environments/#{ENVIRONMENT}/secrets"
-            [200, ALL_SECRETS_BODY]
+            # Encrypted to the presented key, as the API answers it: since #1050 a plain body after a
+            # presented key is refused, so serving ALL_SECRETS_BODY in the clear would test the refusal.
+            presented = headers["x-e2e-public-key"]
+            presented ? [200, encrypt_for(presented, JSON.generate(ALL_SECRETS_BODY))] : [403, { "error" => "no key" }]
           else
             [404, { "error" => "not stubbed: #{path}" }]
           end
