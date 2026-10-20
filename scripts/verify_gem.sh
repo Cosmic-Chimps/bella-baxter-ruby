@@ -14,7 +14,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 GENERATED="$ROOT/lib/bella_baxter/generated"
 
 if [ "${1:-}" = "--generate" ]; then
-  command -v kiota >/dev/null 2>&1 || { echo "kiota is required for --generate (dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.30.0)" >&2; exit 1; }
+  command -v kiota >/dev/null 2>&1 || { echo "kiota is required for --generate (dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.35.0)" >&2; exit 1; }
   # `kiota update` does not clean its output, so a stale file from an earlier generation (e.g. a
   # different namespace) would survive and be packaged. Keep only the committed lock.
   find "$GENERATED" -mindepth 1 -maxdepth 1 ! -name kiota-lock.json -exec rm -rf {} +

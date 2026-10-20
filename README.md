@@ -233,7 +233,7 @@ Regenerate it and prove the gem loads with:
 scripts/verify_gem.sh --generate   # kiota update from the lock + fix step, gem build, install, test
 ```
 
-`kiota update` must always be followed by `ruby scripts/fix_generated_primitives.rb`: Kiota 1.30.0
+`kiota update` must always be followed by `ruby scripts/fix_generated_primitives.rb`: Kiota 1.35.0 (as 1.30.0 did)
 maps `int64`/`double` fields to classes that do not exist, and the script rewrites them to the JSON
 runtime's number readers (issue #991).
 

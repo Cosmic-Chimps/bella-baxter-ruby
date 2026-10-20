@@ -7,7 +7,7 @@
 # Run it after EVERY `kiota generate` / `kiota update` of the Ruby client: apps/sdk/generate.sh, the
 # gem's own publish workflow (.github/workflows/publish.yml) and scripts/verify_gem.sh all do.
 #
-# Why it exists. Kiota 1.30.0's Ruby generator has no mapping for the `int64` and `double` formats.
+# Why it exists. Kiota 1.35.0's Ruby generator (like 1.30.0's before it) has no mapping for the `int64` and `double` formats.
 # Every other format it knows becomes a primitive read (`int32` -> `n.get_number_value()`); these two
 # fall through to the object path and name a class that does not exist:
 #

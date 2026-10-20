@@ -48,7 +48,7 @@ jobs:
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '10.x'
-      - run: dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.30.0
+      - run: dotnet tool install --global Microsoft.OpenApi.Kiota --version 1.35.0
 
       - name: Set production API URL
         run: |
