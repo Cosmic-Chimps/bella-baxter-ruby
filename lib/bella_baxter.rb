@@ -10,6 +10,11 @@ require_relative "bella_baxter/client"
 require_relative "bella_baxter/webhook_signature"
 
 module BellaBaxter
+  # The names the gem reads, canonical first. +bella sdk run+ injects the canonical names AND the deprecated
+  # aliases, so both work under it; a host configured by hand follows the documentation (#1483).
+  API_KEY_VARIABLES = %w[BELLA_BAXTER_API_KEY BELLA_API_KEY].freeze
+  URL_VARIABLES     = %w[BELLA_BAXTER_URL BELLA_API_URL].freeze
+
   class << self
     # Optional global configuration.
     # When set, BellaBaxter.client uses it instead of ENV vars.
@@ -18,10 +23,7 @@ module BellaBaxter
     def configure
       # #1162: Configuration has no project/environment members (they come from the API key), so passing
       # them here raised ArgumentError on the first `configure` call.
-      self.configuration ||= Configuration.new(
-        baxter_url: ENV.fetch("BELLA_BAXTER_URL", ""),
-        api_key:    ENV.fetch("BELLA_API_KEY", "")
-      )
+      self.configuration ||= config_from_env
       yield configuration
       self
     end
@@ -40,14 +42,31 @@ module BellaBaxter
       client.load_into_env!(overwrite: overwrite)
     end
 
+    # The API key from the environment: +BELLA_BAXTER_API_KEY+, else the deprecated +BELLA_API_KEY+.
+    # @return [String, nil] nil when neither is set to something non-empty
+    def env_api_key
+      first_env(API_KEY_VARIABLES)
+    end
+
+    # The Baxter address from the environment: +BELLA_BAXTER_URL+, else the deprecated +BELLA_API_URL+.
+    # @return [String, nil]
+    def env_baxter_url
+      first_env(URL_VARIABLES)
+    end
+
     # Called automatically by the Rails Railtie before_configuration hook.
-    # Silently skips if BELLA_API_KEY is not set (no-op in dev without Bella).
+    # Skips (with ONE warning that names the variables it looked for, never a value) when there is no
+    # credential, so an app configured with a name the gem does not read says so instead of booting
+    # without its secrets in silence.
     def auto_load_from_env!
-      return unless ENV["BELLA_API_KEY"]
+      unless env_api_key
+        logger.warn no_credential_message
+        return
+      end
 
       c = config_from_env
       if c.baxter_url.empty?
-        logger.warn "[BellaBaxter] BELLA_API_KEY set but BELLA_BAXTER_URL missing — skipping"
+        logger.warn "[BellaBaxter] An API key is set but no address (#{URL_VARIABLES.join(' or ')}) — skipping"
         return
       end
 
@@ -64,10 +83,27 @@ module BellaBaxter
 
     private
 
+    def first_env(names)
+      names.each do |name|
+        value = ENV.fetch(name, nil)
+        return value unless value.nil? || value.empty?
+      end
+      nil
+    end
+
+    def no_credential_message
+      message = "[BellaBaxter] No API key found (looked for #{API_KEY_VARIABLES.join(', ')}) — secrets were not loaded."
+      if first_env(["BELLA_BAXTER_ACCESS_TOKEN"])
+        message += " BELLA_BAXTER_ACCESS_TOKEN is set, but this gem signs requests with an API key (bax-...) " \
+                   "and has no bearer-token mode; run with an API key."
+      end
+      message
+    end
+
     def config_from_env
       Configuration.new(
-        baxter_url: ENV.fetch("BELLA_BAXTER_URL", ""),
-        api_key:    ENV.fetch("BELLA_API_KEY", "")
+        baxter_url: env_baxter_url || "",
+        api_key:    env_api_key || ""
       )
     end
 

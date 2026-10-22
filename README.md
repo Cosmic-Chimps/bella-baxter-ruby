@@ -53,8 +53,10 @@ The gem ships a **Railtie** that injects all secrets into `ENV` during Rails' `b
 
 ```bash
 BELLA_BAXTER_URL=https://baxter.example.com
-BELLA_API_KEY=bax-...
+BELLA_BAXTER_API_KEY=bax-...
 # The project and environment are the ones the key is scoped to; E2EE is always on.
+# BELLA_API_KEY / BELLA_API_URL are still read as deprecated aliases. With no API key the Railtie logs one
+# warning naming the variables it looked for. It has no bearer-token mode (BELLA_BAXTER_ACCESS_TOKEN is not used).
 # BELLA_BAXTER_PRIVATE_KEY=...  (optional) a registered device key, injected by `bella sdk run`
 ```
 
@@ -139,7 +141,7 @@ puts "Version #{v.version}, last changed #{v.last_modified}"
 # config/initializers/bella_baxter.rb
 BellaBaxter.configure do |c|
   c.baxter_url = ENV["BELLA_BAXTER_URL"]
-  c.api_key    = ENV["BELLA_API_KEY"]
+  c.api_key    = ENV["BELLA_BAXTER_API_KEY"]
   c.timeout    = 5
 end
 

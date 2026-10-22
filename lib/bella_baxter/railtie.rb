@@ -25,8 +25,12 @@ module BellaBaxter
   #
   # == Required environment variables (set by `bella sdk run`)
   #
-  #   BELLA_API_KEY      Your API key (bax-...)
-  #   BELLA_BAXTER_URL   Base URL of your Bella Baxter instance
+  #   BELLA_BAXTER_API_KEY   Your API key (bax-...); the deprecated BELLA_API_KEY is still read
+  #   BELLA_BAXTER_URL       Base URL of your Bella Baxter instance; the deprecated BELLA_API_URL is still read
+  #
+  # With no API key the Railtie logs one warning naming those variables and loads nothing. It has no
+  # bearer-token mode: BELLA_BAXTER_ACCESS_TOKEN (what +bella sdk run+ injects when signed in as a person)
+  # is not a credential this gem can use, and the warning says so.
   #
   # Project slug, environment slug, and E2EE are auto-discovered from the
   # API key — you do not set them manually.

@@ -36,13 +36,17 @@ module BellaBaxter
   #
   # Prerequisites: run `apps/sdk/generate.sh` to generate `lib/bella_baxter/generated/` first.
   class Client
-    # Convenience constructor — reads BELLA_API_KEY and BELLA_BAXTER_URL from ENV.
+    # Convenience constructor — reads BELLA_BAXTER_API_KEY and BELLA_BAXTER_URL from ENV (the deprecated
+    # BELLA_API_KEY / BELLA_API_URL are still honoured as aliases).
     #
     # @return [BellaBaxter::Client]
+    # @raise [KeyError] when no API key is set
     def self.from_env
       new(
-        baxter_url: ENV.fetch("BELLA_BAXTER_URL", "https://api.bella-baxter.io"),
-        api_key:    ENV.fetch("BELLA_API_KEY")
+        baxter_url: BellaBaxter.env_baxter_url || "https://api.bella-baxter.io",
+        api_key:    BellaBaxter.env_api_key ||
+                    raise(KeyError, "no API key: set #{BellaBaxter::API_KEY_VARIABLES.first} " \
+                                    "(or the deprecated #{BellaBaxter::API_KEY_VARIABLES.last})")
       )
     end
 
