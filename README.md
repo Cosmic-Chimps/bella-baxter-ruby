@@ -241,4 +241,4 @@ runtime's number readers (issue #991).
 
 ## License
 
-[Elastic License 2.0 (ELv2)](https://www.elastic.co/licensing/elastic-license)
+MIT — see [LICENSE](LICENSE) for details.
